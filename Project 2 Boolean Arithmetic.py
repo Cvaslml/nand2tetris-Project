@@ -62,27 +62,36 @@ def ALU(x, y, zx, nx, zy, ny, f, no):
         out = [not_chip(bit) for bit in out]
     return out
 
+def generate_outputs():
+    operations = ["0", "1", "-1", "x", "y", "!x", "!y", "-x", "-y", "x+1", "y+1", "x-1", "y-1", "x+y", "x-y", "y-x", "x&y", "x|y"]
+    x = [0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1]
+    y = [1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0]
+    results = {}
+    results["0"] = [0] * 16
+    results["1"] = [1] * 16
+    results["-1"] = [1] * 16
+    results["x"] = x
+    results["y"] = y
+    results["!x"] = [not_chip(bit) for bit in x]
+    results["!y"] = [not_chip(bit) for bit in y]
+    results["-x"] = add16([not_chip(bit) for bit in x], [0]*15 + [1])
+    results["-y"] = add16([not_chip(bit) for bit in y], [0]*15 + [1])
+    results["x+1"] = inc16(x)
+    results["y+1"] = inc16(y)
+    results["x-1"] = add16(x, [1]*15 + [1])
+    results["y-1"] = add16(y, [1]*15 + [1])
+    results["x+y"] = add16(x, y)
+    results["x-y"] = add16(x, add16([not_chip(bit) for bit in y], [0]*15 + [1]))
+    results["y-x"] = add16(y, add16([not_chip(bit) for bit in x], [0]*15 + [1]))
+    results["x&y"] = [and_chip(x[i], y[i]) for i in range(16)]
+    results["x|y"] = [or_chip(x[i], y[i]) for i in range(16)]
+    
+    for op in operations:
+        print(f"{op}: {results[op]}")
+
 def main():
-    truth_table = []
-    inputs = [
-        (1,0,1,0,1,0), (1,1,1,1,1,1), (1,1,1,1,1,0), (0,0,1,1,1,0),
-        (0,0,1,1,0,0), (0,1,1,1,0,0), (0,0,1,1,0,1), (0,1,1,1,0,1),
-        (0,0,0,0,1,0), (0,1,0,0,1,0), (0,0,0,0,1,1), (0,1,0,0,1,1),
-        (0,0,0,0,0,0), (0,1,0,0,0,0), (0,0,0,1,1,1), (0,1,0,1,1,1),
-        (0,0,0,0,0,1), (0,1,0,0,0,1)
-    ]
-    
-    for zx, nx, zy, ny, f, no in inputs:
-        x = [0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1]
-        y = [1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0]
-        output = ALU(x, y, zx, nx, zy, ny, f, no)
-        truth_table.append((zx, nx, zy, ny, f, no, output))
-    
-    for entry in truth_table:
-        print(f"zx={entry[0]} nx={entry[1]} zy={entry[2]} ny={entry[3]} f={entry[4]} no={entry[5]} -> output={entry[6]}")
+    generate_outputs()
 
 if __name__ == "__main__":
     main()
-    
-    
     
