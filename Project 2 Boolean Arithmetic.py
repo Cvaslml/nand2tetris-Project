@@ -1,7 +1,6 @@
 def nand(a, b):
     return 0 if (a == 1 and b == 1) else 1
 
-# Definición de puertas básicas
 def xor_chip(a, b):
     n1 = nand(a, b)
     n2 = nand(a, n1)
@@ -20,40 +19,70 @@ def or_chip(a, b):
 def not_chip(a):
     return nand(a, a)
 
-# Half Adder
 def halfadder(a, b):
     suma = xor_chip(a, b)
     acarreo = and_chip(a, b)
     return {"Carry_H": acarreo, "Sum_H": suma}
 
-# Full Adder
 def fulladder(a, b, c):
     out1 = halfadder(a, b)
     suma = halfadder(out1["Sum_H"], c)
     acarreo = or_chip(out1["Carry_H"], suma["Carry_H"])
     return {"Carry_F": acarreo, "Sum_F": suma["Sum_H"]}
 
-# ALU basada en la tabla de verdad
-def alu(x, y, zx, nx, zy, ny, f, no):
-    if zx:  # Si zx es 1, x = 0
-        x = 0
-    if nx:  # Si nx es 1, x = !x
-        x = not_chip(x)
-    if zy:  # Si zy es 1, y = 0
-        y = 0
-    if ny:  # Si ny es 1, y = !y
-        y = not_chip(y)
-    
+def add16(a, b):
+    output = [0] * 16
+    acarreo = 0
+    for i in range(15, -1, -1):
+        resultado = fulladder(a[i], b[i], acarreo)
+        output[i] = resultado["Sum_F"]
+        acarreo = resultado["Carry_F"]
+    if acarreo == 1:
+        output.insert(0, 1)
+    return output
+
+def inc16(a):
+    b = [0] * 15 + [1]
+    return add16(a, b)
+
+def ALU(x, y, zx, nx, zy, ny, f, no):
+    if zx:
+        x = [0] * 16
+    if nx:
+        x = [not_chip(bit) for bit in x]
+    if zy:
+        y = [0] * 16
+    if ny:
+        y = [not_chip(bit) for bit in y]
     if f:
-        out = fulladder(x, y, 0)["Sum_F"]  # Suma si f=1
+        out = add16(x, y)
     else:
-        out = and_chip(x, y)  # AND si f=0
-    
+        out = [and_chip(x[i], y[i]) for i in range(16)]
     if no:
-        out = not_chip(out)  # Negación de la salida si no=1
-    
+        out = [not_chip(bit) for bit in out]
     return out
 
-# Prueba de la ALU con una configuración específica
-print(alu(1, 1, 0, 0, 0, 0, 1, 0))  # Debería hacer x + y
+def main():
+    truth_table = []
+    inputs = [
+        (1,0,1,0,1,0), (1,1,1,1,1,1), (1,1,1,1,1,0), (0,0,1,1,1,0),
+        (0,0,1,1,0,0), (0,1,1,1,0,0), (0,0,1,1,0,1), (0,1,1,1,0,1),
+        (0,0,0,0,1,0), (0,1,0,0,1,0), (0,0,0,0,1,1), (0,1,0,0,1,1),
+        (0,0,0,0,0,0), (0,1,0,0,0,0), (0,0,0,1,1,1), (0,1,0,1,1,1),
+        (0,0,0,0,0,1), (0,1,0,0,0,1)
+    ]
+    
+    for zx, nx, zy, ny, f, no in inputs:
+        x = [0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1]
+        y = [1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0]
+        output = ALU(x, y, zx, nx, zy, ny, f, no)
+        truth_table.append((zx, nx, zy, ny, f, no, output))
+    
+    for entry in truth_table:
+        print(f"zx={entry[0]} nx={entry[1]} zy={entry[2]} ny={entry[3]} f={entry[4]} no={entry[5]} -> output={entry[6]}")
 
+if __name__ == "__main__":
+    main()
+    
+    
+    
