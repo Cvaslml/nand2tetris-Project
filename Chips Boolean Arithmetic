@@ -1,0 +1,98 @@
+def nand(a, b):
+    return 0 if (a == 1 and b == 1) else 1
+
+def xor_chip(a, b):
+    n1 = nand(a, b)
+    n2 = nand(a, n1)
+    n3 = nand(n1, b)
+    out = nand(n2, n3)
+    return out
+
+def and_chip(a, b):
+    out = nand(nand(a, b), nand(a, b))
+    return out
+
+def or_chip(a, b):
+    out = nand(nand(a, a), nand(b, b))
+    return out
+
+def not_chip(a):
+    return nand(a, a)
+
+def halfadder(a, b):
+    suma = xor_chip(a, b)
+    acarreo = and_chip(a, b)
+    return {"Carry_H": acarreo, "Sum_H": suma}
+
+def fulladder(a, b, c):
+    out1 = halfadder(a, b)
+    suma = halfadder(out1["Sum_H"], c)
+    acarreo = or_chip(out1["Carry_H"], suma["Carry_H"])
+    return {"Carry_F": acarreo, "Sum_F": suma["Sum_H"]}
+
+def add16(a, b):
+    output = [0] * 16
+    acarreo = 0
+    for i in range(15, -1, -1):
+        resultado = fulladder(a[i], b[i], acarreo)
+        output[i] = resultado["Sum_F"]
+        acarreo = resultado["Carry_F"]
+    if acarreo == 1:
+        output.insert(0, 1)
+    return output
+
+def inc16(a):
+    b = [0] * 15 + [1]
+    return add16(a, b)
+
+def menu_halfadder():
+    a = 1
+    b = 0
+    result = halfadder(a, b)
+    print(f"Halfadder - Sum: {result['Sum_H']}, Carry: {result['Carry_H']}")
+
+def menu_fulladder():
+    a = 1
+    b = 0
+    c = 1
+    result = fulladder(a, b, c)
+    print(f"Fulladder - Sum: {result['Sum_F']}, Carry: {result['Carry_F']}")
+
+def menu_add16():
+    x = [0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1]
+    y = [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0]
+    result = add16(x, y)
+    print(f"Add16 - Resultado: {result}")
+
+def menu_inc16():
+    x = [0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0]
+    result = inc16(x)
+    print(f"Inc16 - Resultado: {result}")
+
+def main_menu():
+    while True:
+        print("\n---- MENÚ ----")
+        print("1. Halfadder")
+        print("2. Fulladder")
+        print("3. Add16")
+        print("4. Inc16")
+        print("5. Salir")
+        
+        choice = input("Seleccione una opción (1/2/3/4/5): ")
+        
+        if choice == '1':
+            menu_halfadder()
+        elif choice == '2':
+            menu_fulladder()
+        elif choice == '3':
+            menu_add16()
+        elif choice == '4':
+            menu_inc16()
+        elif choice == '5':
+            print("Saliendo...")
+            break
+        else:
+            print("Opción no válida, intente de nuevo.")
+
+if __name__ == "__main__":
+    main_menu()
