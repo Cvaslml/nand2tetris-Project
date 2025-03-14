@@ -119,7 +119,7 @@ def nand(a, b):
     return 0 if (a == 1 and b == 1) else 1
 
 
-# 🛠️ Prueba de la RAMn con PC
+# Prueba de la RAMn con PC
 ram = RAMn(8)  # 8 registros de 16 bits
 
 # Escritura en la dirección 3
