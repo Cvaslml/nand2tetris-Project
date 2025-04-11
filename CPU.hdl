@@ -1,0 +1,116 @@
+/**
+ * The Hack CPU (Central Processing unit), consisting of an ALU,
+ * two registers named A and D, and a program counter named PC.
+ * The CPU is designed to fetch and execute instructions written in 
+ * the Hack machine language. In particular, functions as follows:
+ * Executes the inputted instruction according to the Hack machine 
+ * language specification. The D and A in the language specification
+ * refer to CPU-resident registers, while M refers to the external
+ * memory location addressed by A, i.e. to Memory[A]. The inM input 
+ * holds the value of this location. If the current instruction needs 
+ * to write a value to M, the value is placed in outM, the address 
+ * of the target location is placed in addressM, and the writeM control 
+ * bit is asserted. (When writeM==0, any value may appear in outM).
+ * The outM and writeM outputs are combinational: they are affected
+ * instantaneously by the execution of the current instruction. The
+ * addressM and pc outputs are clocked: although they are affected by
+ * the execution of the current instruction, they are only updated in
+ * the next time step. If reset==1 then the CPU jumps to address 0
+ * (i.e. pc is set to 0 in next time step) rather than to the address
+ * resulting from executing the current instruction. 
+ */
+
+CHIP CPU {
+
+    IN  inM[16],         // M value input  (M = contents of RAM[A])
+        instruction[16], // Instruction for execution
+        reset;           // Signals whether to re-start the current
+                         // program (reset==1) or continue executing
+                         // the current program (reset==0).
+
+    OUT outM[16],        // M value output
+        writeM,          // Write to M? 
+        addressM[15],    // Address in data memory (of M)
+        pc[15];          // address of next instruction
+
+    PARTS:
+    // Decodificación de la instrucción
+    // Si instruction[15] = 0, es una instrucción tipo A (dirección)
+    // Si instruction[15] = 1, es una instrucción tipo C (computación)
+    
+    // Determinar si es instrucción tipo A o C
+    Not(in=instruction[15], out=isAInstruction);
+    Not(in=isAInstruction, out=isCInstruction);
+    
+    // Componentes de control para instrucciones tipo C
+    // Los bits de control están en instruction[12..0] para instrucciones tipo C
+    // instruction[12] (a): selecciona entre A y M como segundo operando para ALU
+    // instruction[11..6] (c): determina la operación de la ALU
+    // instruction[5..3] (d): determina dónde guardar el resultado (A, D, M)
+    // instruction[2..0] (j): determina si saltar a la dirección en el registro A
+    
+    // Controlar la carga del registro A
+    // Cargamos A si es instrucción tipo A o si d1 (instruction[5]) está activo
+    And(a=isCInstruction, b=instruction[5], out=loadAFromC);
+    Or(a=isAInstruction, b=loadAFromC, out=loadA);
+    
+    // Multiplexar la entrada al registro A
+    // Si es instrucción tipo A, cargamos instruction
+    // Si es instrucción tipo C con d1 activo, cargamos salida de ALU
+    Mux16(a=instruction, b=aluOutput, sel=isCInstruction, out=aRegisterInput);
+    
+    // Registro A
+    ARegister(in=aRegisterInput, load=loadA, out=aRegisterOutput);
+    
+    // Transferir los 15 bits menos significativos como dirección de memoria
+    And16(a=aRegisterOutput, b=true, out[0..14]=addressM);
+    
+    // Determinar si cargamos registro D (solo en instrucciones tipo C con d2 activo)
+    And(a=isCInstruction, b=instruction[4], out=loadD);
+    
+    // Registro D
+    DRegister(in=aluOutput, load=loadD, out=dRegisterOutput);
+    
+    // Seleccionar entre A o M como segundo operando para la ALU
+    Mux16(a=aRegisterOutput, b=inM, sel=instruction[12], out=aluY);
+    
+    // ALU
+    ALU(x=dRegisterOutput, y=aluY, 
+        zx=instruction[11], nx=instruction[10], 
+        zy=instruction[9], ny=instruction[8], 
+        f=instruction[7], no=instruction[6], 
+        out=aluOutput, zr=aluZero, ng=aluNegative);
+    
+    // Salida M
+    And16(a=aluOutput, b=true, out=outM);
+    
+    // Señal writeM (escribir en memoria si es instrucción C con d3 activo)
+    And(a=isCInstruction, b=instruction[3], out=writeM);
+    
+    // Condiciones de salto
+    // j1 (instruction[2]): saltar si salida < 0
+    // j2 (instruction[1]): saltar si salida = 0
+    // j3 (instruction[0]): saltar si salida > 0
+    
+    // Determinar si la salida es positiva (no negativa y no cero)
+    Not(in=aluZero, out=notZero);
+    Not(in=aluNegative, out=notNegative);
+    And(a=notZero, b=notNegative, out=aluPositive);
+    
+    // Evaluar las condiciones de salto
+    And(a=instruction[2], b=aluNegative, out=jumpIfNegative);
+    And(a=instruction[1], b=aluZero, out=jumpIfZero);
+    And(a=instruction[0], b=aluPositive, out=jumpIfPositive);
+    
+    // Combinar las condiciones de salto
+    Or(a=jumpIfNegative, b=jumpIfZero, out=jumpIfNegativeOrZero);
+    Or(a=jumpIfNegativeOrZero, b=jumpIfPositive, out=jumpCondition);
+    
+    // Solo saltar si es instrucción C y se cumple la condición de salto
+    And(a=isCInstruction, b=jumpCondition, out=jump);
+    
+    // Contador de programa (PC)
+    // Si jump=1, carga A
+    // Si no, incrementa el contador
+    PC(in=aRegisterOutput, load=jump, inc=true, reset=reset, out[0..14]=pc);
+}
